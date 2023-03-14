@@ -1,7 +1,7 @@
 #include <SD.h>
 #include <SPI.h>
 
-const int chipSelect = 4;
+const int chipSelect = 10;
 
 void initSD(){
   if (!SD.begin(chipSelect)) {
