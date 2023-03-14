@@ -26,6 +26,8 @@ bool humidifierState = false;
 double stableTime = 0;
 double timeCounter = 0;
 
+int heater1Relay = 2;
+int heater2Relay = 3;    
 int exhaustRelay = 4;
 int blowerRelay = 5;
 int coolingFanRelay = 6;
@@ -47,6 +49,8 @@ void initRTC(){
 
 void initRelays(){
   initRTC();
+  pinMode(heater1Relay , OUTPUT);
+  pinMode(heater2Relay , OUTPUT);
   pinMode(exhaustRelay , OUTPUT);
   pinMode(blowerRelay , OUTPUT);
   pinMode(coolingFanRelay , OUTPUT);
@@ -55,6 +59,8 @@ void initRelays(){
 }
 
 void setState(){
+  digitalWrite(heater1Relay , heater1State);
+  digitalWrite(heater2Relay , heater2State);
   digitalWrite(exhaustRelay , exhaustFanState);
   digitalWrite(blowerRelay , blowerFanState);
   digitalWrite(coolingFanRelay , coolingFanState);

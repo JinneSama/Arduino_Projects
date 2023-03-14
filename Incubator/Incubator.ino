@@ -15,8 +15,8 @@ DallasTemperature sensors(&oneWire);
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
-int toggleCuring = 9;
-int toggleStorage = 10;
+int toggleCuring = A0;
+int toggleStorage = A1;
 
 void setup() {
   initRelays();
