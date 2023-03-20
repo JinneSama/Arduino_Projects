@@ -5,11 +5,11 @@
 #include <DallasTemperature.h>
 #include "process.h"
 
-#define DHTPIN 2
+#define DHTPIN 0
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
-#define ONE_WIRE_BUS 3
+#define ONE_WIRE_BUS 1
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
