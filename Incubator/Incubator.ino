@@ -38,6 +38,8 @@ void loop() {
     maxTemp = 38;
     minHumid = 65;
     maxHumid = 75;
+    lcd.setCursor(7, 1);
+    lcd.print("Curing");
     if (_canToggle){
       _canToggle = false;
       DateTime now = rtc.now();
@@ -50,6 +52,8 @@ void loop() {
     maxTemp = 30;
     minHumid = 65;
     maxHumid = 75;
+    lcd.setCursor(7, 1);
+    lcd.print("Storage");
     if (_canToggle){
       _canToggle = false;
       DateTime now = rtc.now();
@@ -72,15 +76,15 @@ void loop() {
 }
 
 void printTemp(float t,float h){
-  lcd.setCursor(0, 0);
+  lcd.setCursor(0, 1);
   lcd.print("Temperature: ");
   lcd.print(t);
   lcd.print(" C");
-  lcd.setCursor(0, 1);
+  lcd.setCursor(0, 2);
   lcd.print("Humidity: ");
   lcd.print(humidValue);
   lcd.print(" %");
-  lcd.setCursor(0, 2);
+  lcd.setCursor(0, 3);
   lcd.print("Heat index: ");
   lcd.print(h);
   lcd.print(" C");
