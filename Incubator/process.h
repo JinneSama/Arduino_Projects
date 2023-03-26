@@ -1,9 +1,5 @@
 #include "SDCard.h"
 #include <Wire.h>
-#include <RTClib.h>
-
-RTC_DS3231 rtc;
-File currentFile;
 
 float maxTemp = 30;
 float minTemp = 25;
@@ -25,6 +21,7 @@ bool humidifierState = false;
 
 double stableTime = 0;
 double timeCounter = 0;
+double saveCounter = 0;
 
 int heater1Relay = 2;
 int heater2Relay = 3;    
@@ -34,6 +31,13 @@ int coolingFanRelay = 6;
 int circulatingFanRelay = 7;
 int humidifierRelay = 8;
 boolean _canToggle = true;
+
+boolean _done = false;
+double _doneTime = 0;
+
+boolean resetScreen = false;
+boolean tempStable = false;
+boolean humidStable = false;
 
 bool inRange(float val, float minimum, float maximum)
 {
@@ -58,19 +62,31 @@ void initRelays(){
   pinMode(humidifierRelay , OUTPUT);
 }
 
+void setOffState(){
+  digitalWrite(heater1Relay , HIGH);
+  digitalWrite(heater2Relay , HIGH);
+  digitalWrite(exhaustRelay , HIGH);
+  digitalWrite(blowerRelay , HIGH);
+  digitalWrite(coolingFanRelay , HIGH);
+  digitalWrite(circulatingFanRelay , HIGH);
+  digitalWrite(humidifierRelay , HIGH);
+}
+
 void setState(){
-  digitalWrite(heater1Relay , heater1State);
-  digitalWrite(heater2Relay , heater2State);
-  digitalWrite(exhaustRelay , exhaustFanState);
-  digitalWrite(blowerRelay , blowerFanState);
-  digitalWrite(coolingFanRelay , coolingFanState);
-  digitalWrite(circulatingFanRelay , circulatingFanState);
-  digitalWrite(humidifierRelay , humidifierRelay);
+  digitalWrite(heater1Relay , !heater1State);
+  digitalWrite(heater2Relay , !heater2State);
+  digitalWrite(exhaustRelay , !exhaustFanState);
+  digitalWrite(blowerRelay , !blowerFanState);
+  digitalWrite(coolingFanRelay , !coolingFanState);
+  digitalWrite(circulatingFanRelay , !circulatingFanState);
+  digitalWrite(humidifierRelay , !humidifierState);
 }
 
 void tempAboveMax(){
-  DateTime now = rtc.now();
-  writeToFile(currentFile , String(now.hour()) + "-" + String(now.minute()) + "-" + String(now.second()) + "          " + String(tempValue) + "C" + "          " + String(humidValue) + "%" );
+  if(millis() > saveCounter){
+    saveCounter += 5000;
+    writeDataLog(tempValue , humidValue);
+  }
   if (exhaustFanState){
     if (heater1State){
         heater2State = false;
@@ -86,8 +102,10 @@ void tempAboveMax(){
 } 
 
 void tempBelowMin(){
-  DateTime now = rtc.now();
-  writeToFile(currentFile , String(now.hour()) + "-" + String(now.minute()) + "-" + String(now.second()) + "          " + String(tempValue)  + "C" + "          " + String(humidValue) + "%" );
+  if(millis() > saveCounter){
+    saveCounter += 5000;
+    writeDataLog(tempValue , humidValue);
+    }
   if (heater1State){
     heater2State = true;
     blowerFanState = true;
@@ -103,25 +121,31 @@ void tempInRange(){
   coolingFanState = false;
   blowerFanState = false;
   exhaustFanState = false;
+  tempStable = true;
 }
 
 void humidInRange(){
   exhaustFanState = false;
   circulatingFanState = false;
   humidifierState = false;
+  humidStable = true;
 
-  if (millis() > timeCounter){
-    timeCounter = millis() + 100;
-    stableTime += 100;
-  }
-    
-  if (stableTime >= 50000){
-    exhaustFanState = false;
-    blowerFanState = false;
-    coolingFanState = false;
-    circulatingFanState = false;
-    humidifierState = false;
-    _canToggle = true;
+  if(humidStable && tempStable){
+    if (millis() > timeCounter){
+      timeCounter = millis() + 1000;
+      stableTime += 1000;
+    }
+      
+    if (stableTime >= 300000){
+      exhaustFanState = false;
+      blowerFanState = false;
+      coolingFanState = false;
+      circulatingFanState = false;
+      humidifierState = false;
+      _done = true;
+      _doneTime = millis() + 60000;
+      resetScreen = true;
+    }
   }
 }
 
@@ -132,9 +156,20 @@ void humidCheck(float humid){
   }else{
     if (humid > maxHumid){
       exhaustFanState = true;
+      humidifierState = false;
+      circulatingFanState = false;
+      if(millis() > saveCounter){
+        saveCounter += 5000;
+        writeDataLog(tempValue , humidValue);
+      }
     }else{
       humidifierState = true;
       circulatingFanState = true;
+      exhaustFanState = false;
+       if(millis() > saveCounter){
+        saveCounter += 5000;
+        writeDataLog(tempValue , humidValue);
+      }
     }
   }
 }
@@ -143,7 +178,6 @@ void tempCheck(float temp){
   tempValue = temp;
   if (inRange(temp, minTemp , maxTemp)){
     tempInRange();
-    humidCheck(humidValue);
   }else{
     if (temp > maxTemp){
       tempAboveMax();
@@ -151,4 +185,5 @@ void tempCheck(float temp){
       tempBelowMin();
     }
   }
+  humidCheck(humidValue);
 }

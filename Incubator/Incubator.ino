@@ -1,91 +1,136 @@
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
 #include <DHT.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "process.h"
 
-#define DHTPIN 0
-#define DHTTYPE DHT22
+#define DHTPIN A2
+#define DHTTYPE DHT22 
 DHT dht(DHTPIN, DHTTYPE);
 
-#define ONE_WIRE_BUS 1
+#define ONE_WIRE_BUS A3 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
-
-LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 int toggleCuring = A0;
 int toggleStorage = A1;
 
+float humidValues = 0;
 void setup() {
   initRelays();
-  initSD();
+  setOffState();
   
   dht.begin();
   sensors.begin();
   lcd.init();
   lcd.backlight();
   lcd.clear();
+  
+  initSD();
 
   pinMode(toggleCuring , INPUT_PULLUP);
   pinMode(toggleStorage , INPUT_PULLUP);
 }
 
 void loop() {
-  if (digitalRead(toggleCuring) == HIGH){
+  if (digitalRead(toggleCuring) == LOW){
     minTemp = 34;
     maxTemp = 38;
     minHumid = 65;
     maxHumid = 75;
-    lcd.setCursor(7, 1);
-    lcd.print("Curing");
     if (_canToggle){
+      stableTime = 0;
+      lcd.clear();
       _canToggle = false;
-      DateTime now = rtc.now();
-      currentFile = createFile(String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "  " + String(now.hour()) + "-" + String(now.minute()) + "-" + String(now.second()));
-      writeToFile(currentFile , "Curing Process");
-      writeToFile(currentFile , "Time          Temperature     Humidity");
+      writeHeaderTime("CURING");
+      writeToFile("Time          Temperature     Humidity");
     }
-  }else if(digitalRead(toggleStorage) == HIGH){
+    lcd.setCursor(4, 0);
+    lcd.print("CURING MODE");
+  }else if(digitalRead(toggleStorage) == LOW){
     minTemp = 25;
     maxTemp = 30;
     minHumid = 65;
     maxHumid = 75;
-    lcd.setCursor(7, 1);
-    lcd.print("Storage");
     if (_canToggle){
+      stableTime = 0;
+      lcd.clear();
       _canToggle = false;
-      DateTime now = rtc.now();
-      currentFile = createFile(String(now.year()) + "_" + String(now.month()) + "_" + String(now.day()) + "  " + String(now.hour()) + "-" + String(now.minute()) + "-" + String(now.second()));
-      writeToFile(currentFile , "Storage Process");
+      writeHeaderTime("STORAGE");
+      delay(100);
+      writeToFile("Time          Temperature     Humidity");
+      delay(100);
     }
+    lcd.setCursor(3, 0);
+    lcd.print("STORAGE MODE");
   }else{
+    if(!_canToggle){
+      stableTime = 0;
+      lcd.clear();
       _canToggle = true;
+    }
+    _done = false;    
+    lcd.setCursor(3, 0); 
+    lcd.print("None Selected");
+    setOffState();
     return;
   }
-  
+
   sensors.requestTemperatures();
   float _temperature = sensors.getTempCByIndex(0);
   humidValue = dht.readHumidity();
-  float heatIndex = dht.computeHeatIndex(_temperature, humidValue);
-
-  tempCheck(_temperature);
-  setState();
-  printTemp(_temperature , heatIndex);
+  
+  if(!_done){
+      tempCheck(_temperature);
+      setState();
+      printTemp(_temperature);
+  }else{
+    if(millis() > _doneTime){
+      _canToggle = true;
+      _done = false;
+    }else{
+      if(resetScreen){
+        resetScreen = false;
+        clearLCD(0,1,1,1); 
+      }
+      lcd.setCursor(2, 2);
+      lcd.print("Resetting in ");
+      int tm = (_doneTime - millis())/1000;
+      lcd.setCursor(15, 2);
+      lcd.print("  ");
+      lcd.setCursor(15, 2);
+      lcd.print(String(tm));
+    }
+  }
 }
 
-void printTemp(float t,float h){
+
+void printTemp(float t){
   lcd.setCursor(0, 1);
-  lcd.print("Temperature: ");
+  lcd.print("Temp  :");
   lcd.print(t);
   lcd.print(" C");
   lcd.setCursor(0, 2);
-  lcd.print("Humidity: ");
+  lcd.print("Humid :");
   lcd.print(humidValue);
   lcd.print(" %");
+  
   lcd.setCursor(0, 3);
-  lcd.print("Heat index: ");
-  lcd.print(h);
-  lcd.print(" C");
+  lcd.print("Stable Time >");
+  int seconds = stableTime / 1000;
+  int minutes = seconds/60;
+  seconds %= 60;
+
+  lcd.setCursor(14, 3);
+  if(minutes < 10){
+    lcd.print("0" + String(minutes) + ":");
+  }else{
+    lcd.print(String(minutes) + ":");
+  }
+  lcd.setCursor(17, 3);
+  if(seconds < 10){
+    lcd.print("0" + String(seconds));
+  }else{
+    lcd.print(String(seconds));
+  }
 }
